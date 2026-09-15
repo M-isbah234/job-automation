@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+apify-client
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+sqlalchemy
+pydantic
+python-dotenv
+google-genai
+fpdf2

@@ -1,0 +1,7 @@
+.env
+temp/
+token.json
+credentials/
+data/master_resume.txt
+__pycache__/
+*.pyc
