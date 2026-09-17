@@ -20,24 +20,7 @@ This project is an **Autonomous Job Agent** built with Python and FastAPI. It au
 
 ### Configuration & Credential Status (`.env`)
 
-The application logic is written, but the environment keys and external credentials are not fully connected yet:
 
-- ❌ **`GEMINI_API_KEY`**: Currently empty in [.env](file:///c:/Users/AAMIR%20SHAMSI/Agentic_Ai/jobs-automation/.env). (Required for `brain.py` matching and tailoring).
-- ❌ **`APIFY_API_TOKEN`**: Currently empty in [.env](file:///c:/Users/AAMIR%20SHAMSI/Agentic_Ai/jobs-automation/.env). (Required for `scout.py` LinkedIn job extraction).
-- ⚠️ **Google Cloud OAuth Credentials**: The `credentials/` folder is empty. Needs the client secret JSON file from Google Cloud Console.
-- ⚠️ **`GOOGLE_SHEET_ID`**: Empty. It will be generated automatically once Google OAuth is configured and `setup_google.py` is executed.
-
----
-
-### Required Next Steps to Run
-
-1. **Add API Keys in [.env](file:///c:/Users/AAMIR%20SHAMSI/Agentic_Ai/jobs-automation/.env)**:
-   - Provide your `GEMINI_API_KEY`
-   - Provide your `APIFY_API_TOKEN`
-2. **Google Drive & Sheets Authorization**:
-   - Place your Google OAuth `client_secret_*.json` in the `credentials/` folder.
-   - Run `python setup_google.py` to authenticate and create your tracking sheet.
-3. **Start the Agent Server**:
    ```powershell
    uvicorn main:app --reload
    ```
