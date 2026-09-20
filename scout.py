@@ -48,14 +48,13 @@ def get_jobs(keywords: str, location: str) -> list[dict[str, str]]:
     # Initialize Apify client with authenticated token
     client = ApifyClient(token)
 
-    # Prepare actor parameters matching curious_coder/linkedin-jobs-scraper specifications
+    # Prepare actor parameters matching misceres/indeed-scraper specifications
     run_input = {
-        "includeKeyword": keywords,
-        "locationName": location,
-        "datePosted": DEFAULT_DATE_POSTED,
-        "experienceLevel": DEFAULT_EXPERIENCE_LEVEL,
-        "workType": DEFAULT_WORK_TYPE,
-        "count": DEFAULT_JOB_COUNT,
+        "position": keywords,
+        "location": location,
+        "country": "US", # Defaulting to US, can be customized
+        "maxItems": DEFAULT_JOB_COUNT,
+        "maxItemsPerSearch": DEFAULT_JOB_COUNT,
     }
 
     # Execute the scraping actor synchronously and await completion
@@ -74,13 +73,13 @@ def _clean_job(item: dict[str, Any]) -> dict[str, str]:
     """Normalize and extract required fields from a raw Apify dataset item."""
     return {
         # Normalize job title
-        "title": _clean_text(item.get("title")),
+        "title": _clean_text(item.get("title") or item.get("positionName") or item.get("jobTitle")),
         # Normalize company name (handling alternate key formats)
         "company": _clean_text(item.get("companyName") or item.get("company")),
         # Normalize job description text for LLM analysis
-        "descriptionText": _clean_text(item.get("descriptionText")),
+        "descriptionText": _clean_text(item.get("descriptionText") or item.get("description")),
         # Normalize direct application / posting URL
-        "jobUrl": _clean_text(item.get("jobUrl") or item.get("link")),
+        "jobUrl": _clean_text(item.get("jobUrl") or item.get("link") or item.get("url")),
     }
 
 
