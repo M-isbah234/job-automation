@@ -14,6 +14,7 @@ import re
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 import brain
@@ -45,6 +46,7 @@ class HuntRequest(BaseModel):
         le=100,
         description="Minimum score (0-100) to trigger resume generation",
     )
+    max_jobs: int = Field(default=10, description="Max jobs to scrape")
 
 
 class JobResult(BaseModel):
@@ -68,9 +70,9 @@ class HuntResponse(BaseModel):
 # --- API Endpoints ---
 
 @app.get("/")
-def health_check() -> dict[str, str]:
-    """Liveness probe endpoint to confirm API service is active."""
-    return {"status": "Autonomous Job Agent is running"}
+def serve_ui():
+    """Serve the frontend UI."""
+    return FileResponse("index.html")
 
 
 @app.post("/initiate-hunt", response_model=HuntResponse)
@@ -88,7 +90,7 @@ def initiate_hunt(request: HuntRequest) -> HuntResponse:
 
     # Step 1: Scrape LinkedIn job postings via Scout module
     try:
-        jobs = scout.get_jobs(request.keywords, request.location)
+        jobs = scout.get_jobs(request.keywords, request.location, request.max_jobs)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Scout failed: {exc}") from exc
 
@@ -96,11 +98,14 @@ def initiate_hunt(request: HuntRequest) -> HuntResponse:
     resumes_generated = 0
 
     # Step 2: Iterate through all retrieved jobs with per-job error isolation
-    for job in jobs:
+    print(f"Apify found {len(jobs)} jobs! Starting AI analysis...")
+    for idx, job in enumerate(jobs, 1):
         company = job.get("company", "")
         position = job.get("title", "")
         job_url = job.get("jobUrl", "")
         description = job.get("descriptionText", "")
+        
+        print(f"[{idx}/{len(jobs)}] Analyzing {position} at {company}...")
 
         try:
             # 2a. Gemini evaluates candidate fit against job description
@@ -118,6 +123,7 @@ def initiate_hunt(request: HuntRequest) -> HuntResponse:
                         job_url=job_url,
                     )
                 )
+                print(f" -> Skipped (Score: {match_score})")
                 continue
 
             # 2c. Gemini rewrites bullet points with ATS-targeted keywords
@@ -150,6 +156,7 @@ def initiate_hunt(request: HuntRequest) -> HuntResponse:
                 match_score=match_score,
                 status="Ready",
             )
+            print(f" -> Generated PDF and uploaded to Drive! (Score: {match_score})")
             resumes_generated += 1
 
             results.append(
@@ -163,6 +170,7 @@ def initiate_hunt(request: HuntRequest) -> HuntResponse:
                 )
             )
         except Exception as exc:
+            print(f" -> Error processing job: {exc}")
             # Catch individual job errors without aborting remaining jobs
             results.append(
                 JobResult(

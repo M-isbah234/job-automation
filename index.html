@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Job Agent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#475569'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
+    <div class="max-w-5xl mx-auto p-6">
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight"><i class="fa-solid fa-robot text-primary mr-3"></i>Autonomous Job Agent</h1>
+            <p class="text-slate-500 mt-2 text-lg">Your personal AI recruiter. Enter your target job below to start the hunt.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Form Section -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                <form id="huntForm" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Job Title / Keywords</label>
+                        <input type="text" id="keywords" value="Full Stack Developer" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Location</label>
+                        <input type="text" id="location" value="Remote" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Minimum Match Score (0-100)</label>
+                        <input type="number" id="min_match_score" value="75" min="0" max="100" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
+                        <p class="text-xs text-slate-500 mt-1">Set to 0 to generate a resume for every job found.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Max Jobs to Search</label>
+                        <input type="number" id="max_jobs" value="10" min="1" max="50" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
+                    </div>
+                    <button type="submit" id="submitBtn" class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass"></i> Initiate Hunt
+                    </button>
+                </form>
+            </div>
+
+            <!-- Results Section -->
+            <div class="lg:col-span-2">
+                <!-- Loading State -->
+                <div id="loadingState" class="hidden flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                    <h3 class="text-xl font-semibold text-slate-700">Hunting for jobs...</h3>
+                    <p class="text-slate-500 mt-2 text-center max-w-sm">Scraping Indeed, analyzing matches with Gemini, and generating PDF resumes. This may take a minute.</p>
+                </div>
+
+                <!-- Stats / Results Header -->
+                <div id="resultsHeader" class="hidden mb-6 flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex gap-6">
+                        <div>
+                            <p class="text-xs text-slate-500 font-bold uppercase">Jobs Found</p>
+                            <p id="jobsProcessed" class="text-2xl font-black text-slate-800">0</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 font-bold uppercase">Resumes Generated</p>
+                            <p id="resumesGenerated" class="text-2xl font-black text-green-600">0</p>
+                        </div>
+                    </div>
+                    <a href="https://docs.google.com/spreadsheets" target="_blank" class="text-sm text-primary hover:underline font-semibold flex items-center gap-1">
+                        Open Google Sheet <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                </div>
+
+                <!-- Results List -->
+                <div id="resultsList" class="space-y-4">
+                    <!-- Cards injected here -->
+                    <div class="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
+                        <i class="fa-solid fa-clipboard-list text-4xl mb-3 text-slate-300"></i>
+                        <p>Results will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('huntForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loadingState');
+            const resultsHeader = document.getElementById('resultsHeader');
+            const resultsList = document.getElementById('resultsList');
+            
+            // UI State updates
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Hunting...';
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            
+            resultsHeader.classList.add('hidden');
+            resultsList.innerHTML = '';
+            loading.classList.remove('hidden');
+            loading.classList.add('flex');
+
+            try {
+                const response = await fetch('/initiate-hunt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        keywords: document.getElementById('keywords').value,
+                        location: document.getElementById('location').value,
+                        min_match_score: parseInt(document.getElementById('min_match_score').value),
+                        max_jobs: parseInt(document.getElementById('max_jobs').value)
+                    })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok: ' + await response.text());
+                
+                const data = await response.json();
+                
+                // Update stats
+                document.getElementById('jobsProcessed').innerText = data.jobs_processed;
+                document.getElementById('resumesGenerated').innerText = data.resumes_generated;
+                
+                // Render Cards
+                loading.classList.add('hidden');
+                loading.classList.remove('flex');
+                resultsHeader.classList.remove('hidden');
+                resultsHeader.classList.add('flex');
+
+                if (data.results.length === 0) {
+                    resultsList.innerHTML = `
+                        <div class="bg-amber-50 p-6 rounded-xl border border-amber-200 text-amber-800 text-center">
+                            No jobs found for these keywords in this location.
+                        </div>`;
+                    return;
+                }
+
+                data.results.forEach(job => {
+                    let statusColor = job.status === "Ready" ? "bg-green-100 text-green-800 border-green-200" :
+                                      job.status.includes("Skipped") ? "bg-slate-100 text-slate-600 border-slate-200" :
+                                      "bg-red-100 text-red-800 border-red-200";
+
+                    let card = document.createElement('div');
+                    card.className = "bg-white p-5 rounded-xl shadow-sm border border-slate-200 transition-all hover:shadow-md";
+                    
+                    let resumeHtml = job.resume_link ? `<a href="${job.resume_link}" target="_blank" class="text-sm font-semibold text-primary hover:underline flex items-center gap-1"><i class="fa-regular fa-file-pdf"></i> View Resume PDF</a>` : '';
+                    let errorHtml = job.error ? `<div class="mt-3 p-3 bg-red-50 text-red-700 text-xs rounded border border-red-100 break-words">${job.error}</div>` : '';
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900">${job.position || 'Unknown Position'}</h3>
+                                <p class="text-slate-600 font-medium">${job.company || 'Unknown Company'}</p>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold border ${statusColor}">
+                                ${job.status}
+                            </span>
+                        </div>
+                        
+                        <div class="flex items-center gap-4 mt-4">
+                            <div class="flex items-center gap-1.5 text-sm text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                                <i class="fa-solid fa-bullseye text-primary"></i> Score: <strong>${job.match_score}</strong>
+                            </div>
+                            <a href="${job.job_url}" target="_blank" class="text-sm text-slate-500 hover:text-primary transition-colors flex items-center gap-1">
+                                <i class="fa-solid fa-link"></i> Job Posting
+                            </a>
+                            ${resumeHtml}
+                        </div>
+                        ${errorHtml}
+                    `;
+                    resultsList.appendChild(card);
+                });
+
+            } catch (error) {
+                loading.classList.add('hidden');
+                loading.classList.remove('flex');
+                resultsList.innerHTML = `
+                    <div class="bg-red-50 p-6 rounded-xl border border-red-200 text-red-700">
+                        <h4 class="font-bold mb-1">An error occurred</h4>
+                        <p class="text-sm">${error.message}</p>
+                    </div>`;
+            } finally {
+                // Reset button
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Initiate Hunt';
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        });
+    </script>
+</body>
+</html>

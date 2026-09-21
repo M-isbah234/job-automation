@@ -26,7 +26,7 @@ DEFAULT_EXPERIENCE_LEVEL = ["internship", "entry_level"]
 DEFAULT_WORK_TYPE = ["on_site", "remote", "hybrid"]
 
 
-def get_jobs(keywords: str, location: str) -> list[dict[str, str]]:
+def get_jobs(keywords: str, location: str, max_jobs: int = DEFAULT_JOB_COUNT) -> list[dict[str, str]]:
     """Scrape LinkedIn jobs via Apify and return normalized records.
 
     Args:
@@ -53,8 +53,8 @@ def get_jobs(keywords: str, location: str) -> list[dict[str, str]]:
         "position": keywords,
         "location": location,
         "country": "US", # Defaulting to US, can be customized
-        "maxItems": DEFAULT_JOB_COUNT,
-        "maxItemsPerSearch": DEFAULT_JOB_COUNT,
+        "maxItems": max_jobs,
+        "maxItemsPerSearch": max_jobs,
     }
 
     # Execute the scraping actor synchronously and await completion
