@@ -61,7 +61,9 @@ def get_jobs(keywords: str, location: str) -> list[dict[str, str]]:
     run = client.actor(APIFY_ACTOR_ID).call(run_input=run_input)
 
     # Retrieve default dataset ID where scrape results are stored
-    dataset_id = run.get("defaultDatasetId")
+    dataset_id = getattr(run, "defaultDatasetId", None) or getattr(run, "default_dataset_id", None)
+    if not dataset_id and hasattr(run, "get"):
+        dataset_id = run.get("defaultDatasetId")
     if not dataset_id:
         return []
 

@@ -108,7 +108,7 @@ def initiate_hunt(request: HuntRequest) -> HuntResponse:
             match_score = _extract_match_score(analysis)
 
             # 2b. Skip generation if candidate fit is below threshold
-            if match_score <= request.min_match_score:
+            if match_score < request.min_match_score:
                 results.append(
                     JobResult(
                         company=company,
