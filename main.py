@@ -216,6 +216,7 @@ def initiate_hunt(request: HuntRequest) -> HuntResponse:
                 company=company,
                 position=position,
                 match_score=match_score,
+                job_url=job_url,
                 status="Ready",
             )
             print(f" -> Generated PDF and uploaded to Drive! (Score: {match_score})")

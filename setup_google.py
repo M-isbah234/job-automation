@@ -6,7 +6,7 @@ This setup utility script:
 3. Checks if GOOGLE_SHEET_ID is already configured:
    - If missing, automatically creates a new Google Sheet on the authenticated account
      and writes its ID back into the local .env file.
-4. Initializes the column headers (Date, Company, Position, Match Score, Resume Link, Status).
+4. Initializes the column headers (Date, Company, Position, Match Score, Resume Link, Status, Job Link).
 """
 
 from __future__ import annotations

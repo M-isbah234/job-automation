@@ -252,6 +252,7 @@ def append_application_row(
     position: str,
     match_score: int | str,
     resume_link: str,
+    job_url: str,
     status: str = "Ready",
     row_date: str | None = None,
 ) -> None:
@@ -262,6 +263,7 @@ def append_application_row(
         position: Job title / role.
         match_score: Numerical match score calculated by Gemini.
         resume_link: Google Drive link to the tailored PDF.
+        job_url: Link to the original job posting.
         status: Application status (default 'Ready').
         row_date: Optional ISO date string; defaults to current date.
     """
@@ -269,7 +271,7 @@ def append_application_row(
     if not sheet_id:
         raise RuntimeError("Missing GOOGLE_SHEET_ID in .env")
 
-    # Format values matching dashboard headers: Date, Company, Position, Match Score, Link, Status
+    # Format values matching dashboard headers: Date, Company, Position, Match Score, Link, Status, Job Link
     values = [[
         row_date or date.today().isoformat(),
         company,
@@ -277,13 +279,14 @@ def append_application_row(
         str(match_score),
         resume_link,
         status,
+        job_url,
     ]]
 
     # Build authenticated Google Sheets v4 client and append the row
     service = build("sheets", "v4", credentials=_get_google_credentials())
     service.spreadsheets().values().append(
         spreadsheetId=sheet_id,
-        range=os.getenv("GOOGLE_SHEET_RANGE", "Sheet1!A:F"),
+        range=os.getenv("GOOGLE_SHEET_RANGE", "Sheet1!A:G"),
         valueInputOption="USER_ENTERED",
         insertDataOption="INSERT_ROWS",
         body={"values": values},
@@ -300,7 +303,7 @@ def initialize_sheet_headers() -> None:
     service = build("sheets", "v4", credentials=_get_google_credentials())
     service.spreadsheets().values().update(
         spreadsheetId=sheet_id,
-        range=os.getenv("GOOGLE_SHEET_HEADER_RANGE", "Sheet1!A1:F1"),
+        range=os.getenv("GOOGLE_SHEET_HEADER_RANGE", "Sheet1!A1:G1"),
         valueInputOption="USER_ENTERED",
         body={
             "values": [[
@@ -310,6 +313,7 @@ def initialize_sheet_headers() -> None:
                 "Match Score",
                 "Resume Link",
                 "Status",
+                "Job Link",
             ]]
         },
     ).execute()
@@ -337,6 +341,7 @@ def upload_and_log(
     company: str,
     position: str,
     match_score: int | str,
+    job_url: str,
     status: str = "Ready",
 ) -> str:
     """Upload a resume PDF to Drive, log the application in Sheets, and return the link."""
@@ -349,6 +354,7 @@ def upload_and_log(
         position=position,
         match_score=match_score,
         resume_link=resume_link,
+        job_url=job_url,
         status=status,
     )
     return resume_link

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 
 from dotenv import load_dotenv
 from google import genai
@@ -123,19 +124,51 @@ def _get_gemini_client() -> genai.Client:
 def _generate_plain_text(prompt: str) -> str:
     """Send prompt to Gemini model with system instructions and post-process output."""
     client = _get_gemini_client()
-    completion = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=(
-                "You are an expert recruiter. Always return plain text only. "
-                "Never return markdown, bold formatting, code fences, tables, or HTML."
-            ),
-            # Low temperature (0.3) ensures focused, deterministic, and factual outputs
-            temperature=0.3,
-        ),
-    )
-    return _clean_plain_text(completion.text or "")
+    
+    max_retries = 3
+    base_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            completion = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=(
+                        "You are an expert recruiter. Always return plain text only. "
+                        "Never return markdown, bold formatting, code fences, tables, or HTML."
+                    ),
+                    # Low temperature (0.3) ensures focused, deterministic, and factual outputs
+                    temperature=0.3,
+                ),
+            )
+            return _clean_plain_text(completion.text or "")
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "quota" in error_msg or "429" in error_msg or "high demand" in error_msg or "503" in error_msg or "overloaded" in error_msg:
+                if attempt < max_retries - 1:
+                    print(f"Gemini API busy (attempt {attempt + 1}/{max_retries}). Retrying in {base_delay} seconds...")
+                    time.sleep(base_delay)
+                    base_delay *= 2
+                else:
+                    print("Max retries reached. Trying fallback model 'gemini-1.5-flash'...")
+                    try:
+                        completion = client.models.generate_content(
+                            model="gemini-1.5-flash",
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                system_instruction=(
+                                    "You are an expert recruiter. Always return plain text only. "
+                                    "Never return markdown, bold formatting, code fences, tables, or HTML."
+                                ),
+                                temperature=0.3,
+                            ),
+                        )
+                        return _clean_plain_text(completion.text or "")
+                    except Exception as fallback_e:
+                        raise RuntimeError(f"Gemini API failed after retries. Original error: {e}. Fallback error: {fallback_e}")
+            else:
+                raise
 
 
 def _clean_plain_text(text: str) -> str:
