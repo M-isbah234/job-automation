@@ -35,50 +35,170 @@ SCOPES = [
 ]
 
 
+class _ResumePDFBuilder:
+    """PDF builder that renders resumes matching the candidate's exact master layout and styling."""
+
+    def __init__(self):
+        from fpdf import FPDF
+        self.pdf = FPDF(orientation="P", unit="mm", format="A4")
+        self.pdf.set_auto_page_break(auto=True, margin=14)
+        self.font_name = "Helvetica"
+        self.has_unicode_font = False
+
+        # Attempt to load Arial TTF for full Unicode bullet and em-dash rendering
+        font_paths = [
+            ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/ariali.ttf"),
+            ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", None),
+        ]
+        for reg, bold, italic in font_paths:
+            if os.path.exists(reg):
+                self.pdf.add_font("CustomFont", "", reg)
+                if bold and os.path.exists(bold):
+                    self.pdf.add_font("CustomFont", "B", bold)
+                if italic and os.path.exists(italic):
+                    self.pdf.add_font("CustomFont", "I", italic)
+                self.font_name = "CustomFont"
+                self.has_unicode_font = True
+                break
+
+    def sanitize(self, text: str) -> str:
+        if self.has_unicode_font:
+            return text
+        # If fallback Helvetica, convert Unicode characters cleanly to Latin-1
+        text = text.replace("●", chr(149)).replace("•", chr(149))
+        text = text.replace("—", "-").replace("–", "-")
+        text = text.replace('“', '"').replace('”', '"').replace("’", "'").replace("‘", "'")
+        return text.encode("latin-1", "replace").decode("latin-1")
+
+    def render(self, raw_text: str, output_path: str | Path) -> None:
+        self.pdf.set_margins(15, 12, 15)
+        self.pdf.add_page()
+
+        lines = [line.strip() for line in raw_text.splitlines()]
+
+        # Skip empty leading lines
+        idx = 0
+        while idx < len(lines) and not lines[idx]:
+            idx += 1
+
+        if idx >= len(lines):
+            self.pdf.output(str(output_path))
+            return
+
+        # 1. Candidate Name (Header)
+        name = lines[idx]
+        idx += 1
+        self.pdf.set_font(self.font_name, "B", 17)
+        self.pdf.set_text_color(17, 24, 39)
+        self.pdf.cell(0, 8, self.sanitize(name), align="C", new_x="LMARGIN", new_y="NEXT")
+
+        # 2. Contact details line (email, linkedin, github)
+        if idx < len(lines) and lines[idx]:
+            contact_line = lines[idx]
+            idx += 1
+            self.pdf.set_font(self.font_name, "", 8.5)
+            self.pdf.set_text_color(71, 85, 105)
+            self.pdf.cell(0, 5, self.sanitize(contact_line), align="C", new_x="LMARGIN", new_y="NEXT")
+            self.pdf.ln(3)
+
+        section_names = {
+            "SUMMARY", "SKILLS", "EXPERIENCE / INTERNSHIP", "EXPERIENCE",
+            "INTERNSHIP", "PROJECTS", "EDUCATION", "CERTIFICATES", "CERTIFICATIONS"
+        }
+
+        # 3. Main Resume Body
+        while idx < len(lines):
+            line = lines[idx]
+            idx += 1
+            if not line:
+                self.pdf.ln(2)
+                continue
+
+            upper_line = line.upper().strip()
+
+            # Section heading
+            if upper_line in section_names or (len(line) < 30 and any(upper_line.startswith(s) for s in section_names)):
+                self.pdf.ln(3)
+                self.pdf.set_font(self.font_name, "B", 12)
+                self.pdf.set_text_color(15, 23, 42)
+                self.pdf.cell(0, 6, self.sanitize(line), new_x="LMARGIN", new_y="NEXT")
+                self.pdf.set_draw_color(226, 232, 240)
+                self.pdf.line(15, self.pdf.get_y(), 195, self.pdf.get_y())
+                self.pdf.ln(2)
+                continue
+
+            # Bullet points
+            is_bullet = line.startswith(("●", "•", "-", "*"))
+            if is_bullet:
+                bullet_body = re.sub(r"^[●•\-\*]\s*", "", line).strip()
+                self.pdf.set_text_color(30, 41, 59)
+                prefix_match = re.match(r"^([^:]{2,35}:)\s*(.*)", bullet_body)
+                bullet_char = "● " if self.has_unicode_font else chr(149) + " "
+
+                bullet_x = 18
+                content_x = 22
+                content_w = 195 - content_x
+
+                self.pdf.set_x(bullet_x)
+                self.pdf.set_font(self.font_name, "", 8.5)
+                self.pdf.write(5, self.sanitize(bullet_char))
+
+                self.pdf.set_x(content_x)
+                if prefix_match:
+                    prefix, rest = prefix_match.groups()
+                    self.pdf.set_font(self.font_name, "B", 9.5)
+                    self.pdf.write(5, self.sanitize(prefix + " "))
+                    self.pdf.set_font(self.font_name, "", 9.5)
+                    self.pdf.multi_cell(content_w, 5, self.sanitize(rest), new_x="LMARGIN", new_y="NEXT")
+                else:
+                    self.pdf.set_font(self.font_name, "", 9.5)
+                    self.pdf.multi_cell(content_w, 5, self.sanitize(bullet_body), new_x="LMARGIN", new_y="NEXT")
+                continue
+
+            # Role / Company / Project title header (e.g. Decode Labs | AI Engineering Intern)
+            if "|" in line and len(line) < 100:
+                self.pdf.ln(1.5)
+                self.pdf.set_font(self.font_name, "B", 10.5)
+                self.pdf.set_text_color(17, 24, 39)
+                self.pdf.cell(0, 5, self.sanitize(line), new_x="LMARGIN", new_y="NEXT")
+                continue
+
+            # Date / Location line
+            if any(term in line for term in ["202", "201", "Remote", "Pakistan", "Karachi", "–", "—"]) and len(line) < 80:
+                self.pdf.set_font(self.font_name, "I", 9)
+                self.pdf.set_text_color(100, 116, 139)
+                self.pdf.cell(0, 4.5, self.sanitize(line), new_x="LMARGIN", new_y="NEXT")
+                continue
+
+            # Standard paragraph line (Summary description, etc.)
+            self.pdf.set_font(self.font_name, "", 9.5)
+            self.pdf.set_text_color(51, 65, 85)
+            self.pdf.multi_cell(0, 5, self.sanitize(line), new_x="LMARGIN", new_y="NEXT")
+
+        self.pdf.output(str(output_path))
+
+
 def create_resume_pdf(resume_text: str, filename: str = "tailored_resume.pdf") -> Path:
-    """Create a clean PDF in the temp folder and return its local file path.
+    """Create a professionally styled ATS resume PDF adhering to the master resume pattern.
 
     Args:
-        resume_text: Plain text content of the resume, analysis, and job info.
+        resume_text: Clean plain text content of the complete tailored resume.
         filename: Target filename for the generated PDF document.
 
     Returns:
         Path object pointing to the created PDF file.
-
-    Raises:
-        RuntimeError: If fpdf2 is not installed in the current environment.
     """
-    try:
-        from fpdf import FPDF
-    except ImportError as exc:
-        raise RuntimeError("fpdf2 is not installed. Run: pip install fpdf2") from exc
-
-    # Ensure local temporary storage directory exists
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
     pdf_path = TEMP_DIR / _safe_pdf_filename(filename)
-
-    # Initialize FPDF with portrait orientation and standard margins
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=11)
-
-    # Render each line with auto-wrapping to prevent text cutoff
-    for line in resume_text.splitlines():
-        clean_line = line.strip()
-        if not clean_line:
-            pdf.ln(5)  # Add paragraph spacing for empty lines
-            continue
-        pdf.multi_cell(0, 7, clean_line, new_x="LMARGIN", new_y="NEXT")
-
-    # Save generated PDF to disk
-    pdf.output(str(pdf_path))
+    builder = _ResumePDFBuilder()
+    builder.render(resume_text, pdf_path)
     return pdf_path
 
 
 def create_pdf(resume_text: str, filename: str = "tailored_resume.pdf") -> Path:
     """Compatibility wrapper for the control tower workflow."""
     return create_resume_pdf(resume_text, filename)
+
 
 
 def upload_pdf_to_drive(pdf_path: str | Path) -> str:

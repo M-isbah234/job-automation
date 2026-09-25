@@ -56,40 +56,49 @@ def analyze_job(job_description: str, master_resume: str) -> str:
 def generate_tailored_resume(
     job_description: str,
     master_resume: str,
-    resume_bullets: list[str] | str,
+    resume_bullets: list[str] | str | None = None,
 ) -> str:
-    """Rewrite resume bullet points so they better match the job keywords.
-
-    Enhances keyword density for ATS scanners while strictly maintaining factual
-    accuracy (forbidding hallucinated positions, metrics, or technologies).
+    """Generate a complete tailored resume that mirrors the exact structure and pattern
+    of the master resume while optimizing summary, skills emphasis, and experience/project
+    bullet points for the target job keywords and ATS scanners.
 
     Args:
         job_description: Full text of the employer's job posting.
-        master_resume: Candidate's baseline resume for full context.
-        resume_bullets: Original accomplishments list or text to optimize.
+        master_resume: Candidate's baseline resume text.
+        resume_bullets: Optional specific bullet points override or additional context.
 
     Returns:
-        Rewritten bullet points formatted with standard hyphens in plain text.
+        Complete tailored resume formatted with the exact sections and sequence
+        of the master resume in clean, structured plain text.
     """
-    # Normalize bullet list into a line-by-line string if passed as a list
-    bullets_text = (
-        "\n".join(f"- {bullet}" for bullet in resume_bullets)
-        if isinstance(resume_bullets, list)
-        else resume_bullets
-    )
     prompt = (
-        "You are an expert recruiter and resume writer.\n"
-        "Rewrite the provided resume bullet points to match the job description keywords.\n"
-        "Keep the candidate truthful. Do not invent tools, employers, metrics, or experience.\n"
-        "Make the bullets specific, action-oriented, and ATS-friendly.\n\n"
-        "Output format exactly:\n"
-        "Tailored Resume Bullets:\n"
-        "- <rewritten bullet>\n"
-        "- <rewritten bullet>\n\n"
-        "Do not use markdown styling, bold text, tables, or HTML.\n"
-        "Use plain text only.\n\n"
+        "You are an expert executive resume writer and ATS optimization specialist.\n"
+        "Your task is to generate a COMPLETE tailored resume for the candidate based on their MASTER RESUME "
+        "and the target JOB DESCRIPTION.\n\n"
+        "CRITICAL INSTRUCTIONS:\n"
+        "1. PRESERVE THE EXACT PATTERN, STRUCTURE, AND SECTIONS of the MASTER RESUME:\n"
+        "   - Top Header: Exact Candidate Name and Contact Details (Email, GitHub, LinkedIn).\n"
+        "   - Retain the exact same section titles in the same order:\n"
+        "     * Summary\n"
+        "     * Skills\n"
+        "     * Experience / Internship\n"
+        "     * Projects\n"
+        "     * Education\n"
+        "     * Certificates\n"
+        "2. TAILOR CONTENT STRATEGICALLY FOR THE TARGET JOB:\n"
+        "   - Summary: Align the candidate's summary directly with the target job title, company, and core tech requirements.\n"
+        "   - Skills: Prioritize and highlight the candidate's skills that match the job description.\n"
+        "   - Experience / Internship: Keep the exact employer, role, location, and dates. Rewrite bullet points with strong action verbs and relevant ATS keywords.\n"
+        "   - Projects: Keep project titles and links. Polish descriptions and bullet points to emphasize relevant technical achievements and architectures.\n"
+        "   - Education & Certificates: Keep strictly identical to the master resume.\n"
+        "3. STRICT FACTUAL ACCURACY:\n"
+        "   - NEVER fabricate new employers, degrees, dates, tools, or experiences not present in the master resume.\n"
+        "4. CLEAN PLAIN TEXT FORMAT:\n"
+        "   - Use '● ' for bullet points.\n"
+        "   - Put section headings on their own lines.\n"
+        "   - Do NOT use markdown asterisks (no **bold**), no backticks, no HTML, and no code fences.\n"
+        "   - Do NOT include any recruiter notes, commentary, or intro/outro text. Output ONLY the resume itself.\n\n"
         f"MASTER RESUME:\n{master_resume}\n\n"
-        f"CURRENT BULLETS:\n{bullets_text}\n\n"
         f"JOB DESCRIPTION:\n{job_description}"
     )
     return _generate_plain_text(prompt)

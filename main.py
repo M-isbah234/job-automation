@@ -9,11 +9,12 @@ This module acts as the application's control tower:
 
 from __future__ import annotations
 
+import io
 import os
 import re
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -67,12 +68,82 @@ class HuntResponse(BaseModel):
     results: list[JobResult]
 
 
+class ResumeUpdatePayload(BaseModel):
+    """Payload schema for updating master reference resume text."""
+    content: str = Field(description="Full text of the master resume")
+
+
 # --- API Endpoints ---
 
 @app.get("/")
 def serve_ui():
     """Serve the frontend UI."""
     return FileResponse("index.html")
+
+
+@app.get("/api/resume")
+def get_master_resume():
+    """Fetch the current master resume text stored on the server."""
+    try:
+        content = _resolve_master_resume(None)
+        return {"content": content, "status": "ok"}
+    except HTTPException:
+        return {"content": "", "status": "empty"}
+
+
+@app.post("/api/resume")
+def update_master_resume(payload: ResumeUpdatePayload):
+    """Save updated master resume text to disk."""
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Resume content cannot be empty.")
+    _save_master_resume(payload.content.strip())
+    return {"status": "ok", "message": "Master resume updated successfully."}
+
+
+@app.post("/api/resume/upload")
+async def upload_resume_file(file: UploadFile = File(...)):
+    """Upload a resume file (.pdf or .txt), extract text, and update the reference resume."""
+    filename = (file.filename or "").lower()
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    extracted_text = ""
+    if filename.endswith(".pdf"):
+        extracted_text = _extract_text_from_pdf(file_bytes)
+    elif filename.endswith(".txt") or filename.endswith(".md"):
+        try:
+            extracted_text = file_bytes.decode("utf-8").strip()
+        except UnicodeDecodeError:
+            extracted_text = file_bytes.decode("latin-1", errors="ignore").strip()
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file format. Please upload a .pdf or .txt file.",
+        )
+
+    if not extracted_text.strip():
+        raise HTTPException(status_code=400, detail="Could not extract readable text from the file.")
+
+    _save_master_resume(extracted_text.strip())
+    return {
+        "status": "ok",
+        "message": f"Successfully extracted and saved {file.filename}",
+        "content": extracted_text.strip(),
+        "filename": file.filename,
+    }
+
+
+@app.get("/api/resume/preview-pdf")
+def preview_master_resume_pdf():
+    """Generate and return a rendered PDF of the current master resume."""
+    content = _resolve_master_resume(None)
+    pdf_path = output.create_pdf(content, filename="Master_Resume_Preview.pdf")
+    return FileResponse(
+        str(pdf_path),
+        media_type="application/pdf",
+        filename="Master_Resume_Preview.pdf",
+    )
 
 
 @app.post("/initiate-hunt", response_model=HuntResponse)
@@ -126,29 +197,20 @@ def initiate_hunt(request: HuntRequest) -> HuntResponse:
                 print(f" -> Skipped (Score: {match_score})")
                 continue
 
-            # 2c. Gemini rewrites bullet points with ATS-targeted keywords
+            # 2c. Gemini generates complete tailored resume matching original CV pattern
             tailored_resume = brain.generate_tailored_resume(
                 job_description=description,
                 master_resume=master_resume,
-                resume_bullets=request.resume_bullets or master_resume,
+                resume_bullets=request.resume_bullets,
             )
 
-            # 2d. Assemble complete text document for PDF generation
-            pdf_text = _build_pdf_text(
-                company=company,
-                position=position,
-                job_url=job_url,
-                analysis=analysis,
-                tailored_resume=tailored_resume,
-            )
-
-            # 2e. Render PDF document locally in temp directory
+            # 2d. Render PDF document locally adhering to ATS styling
             pdf_path = output.create_pdf(
-                pdf_text,
+                tailored_resume,
                 filename=f"{company}_{position}_resume.pdf",
             )
 
-            # 2f. Upload PDF to Drive & append row to Google Sheet
+            # 2e. Upload PDF to Drive & append row to Google Sheet
             resume_link = output.upload_and_log(
                 pdf_path=pdf_path,
                 company=company,
@@ -228,24 +290,28 @@ def _resolve_master_resume(request_resume: str | None) -> str:
     return master_resume
 
 
-def _build_pdf_text(
-    company: str,
-    position: str,
-    job_url: str,
-    analysis: str,
-    tailored_resume: str,
-) -> str:
-    """Format and assemble the text blocks into a structured document for PDF export."""
-    sections: list[Any] = [
-        f"Tailored Resume - {position}",
-        f"Company: {company}",
-        f"Job Link: {job_url}",
-        "",
-        "Recruiter Analysis",
-        analysis,
-        "",
-        "Tailored Resume Content",
-        tailored_resume,
-    ]
-    return "\n".join(str(section) for section in sections)
+def _save_master_resume(content: str) -> None:
+    """Save content to the configured master resume file."""
+    resume_file = os.getenv("MASTER_RESUME_FILE", "data/master_resume.txt")
+    os.makedirs(os.path.dirname(os.path.abspath(resume_file)), exist_ok=True)
+    with open(resume_file, "w", encoding="utf-8") as f:
+        f.write(content.strip())
+
+
+def _extract_text_from_pdf(file_bytes: bytes) -> str:
+    """Extract clean plain text from uploaded PDF bytes."""
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(file_bytes))
+        pages_text: list[str] = []
+        for page in reader.pages:
+            t = page.extract_text() or ""
+            if t.strip():
+                pages_text.append(t.strip())
+        return "\n\n".join(pages_text)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to extract text from PDF: {exc}",
+        ) from exc
 
