@@ -3,95 +3,397 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Autonomous Job Agent</title>
+    <title>Autonomous Job Agent | AI Recruiter & Tailored Resumes</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
                     colors: {
-                        primary: '#2563eb',
-                        secondary: '#475569'
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        },
+                        slate: {
+                            850: '#151f32',
+                            900: '#0f172a',
+                        }
                     }
                 }
             }
         }
     </script>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
-    <div class="max-w-5xl mx-auto p-6">
-        <header class="mb-10 text-center">
-            <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight"><i class="fa-solid fa-robot text-primary mr-3"></i>Autonomous Job Agent</h1>
-            <p class="text-slate-500 mt-2 text-lg">Your personal AI recruiter. Enter your target job below to start the hunt.</p>
-        </header>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans antialiased">
 
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Form Section -->
-            <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
-                <form id="huntForm" class="space-y-5">
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Job Title / Keywords</label>
-                        <input type="text" id="keywords" value="Full Stack Developer" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Location</label>
-                        <input type="text" id="location" value="Remote" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Minimum Match Score (0-100)</label>
-                        <input type="number" id="min_match_score" value="75" min="0" max="100" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
-                        <p class="text-xs text-slate-500 mt-1">Set to 0 to generate a resume for every job found.</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Max Jobs to Search</label>
-                        <input type="number" id="max_jobs" value="10" min="1" max="50" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
-                    </div>
-                    <button type="submit" id="submitBtn" class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-magnifying-glass"></i> Initiate Hunt
-                    </button>
-                </form>
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+                    <i class="fa-solid fa-briefcase text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 leading-tight">Autonomous Job Agent</h1>
+                    <p class="text-xs text-slate-500 font-medium">Scout • Brain • Output Automation</p>
+                </div>
             </div>
 
-            <!-- Results Section -->
-            <div class="lg:col-span-2">
-                <!-- Loading State -->
-                <div id="loadingState" class="hidden flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-                    <h3 class="text-xl font-semibold text-slate-700">Hunting for jobs...</h3>
-                    <p class="text-slate-500 mt-2 text-center max-w-sm">Scraping Indeed, analyzing matches with Gemini, and generating PDF resumes. This may take a minute.</p>
-                </div>
+            <!-- Tab Switcher -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-sm font-semibold">
+                <button id="tabHuntBtn" onclick="switchTab('hunt')" class="px-4 py-1.5 rounded-lg transition-all flex items-center gap-2 bg-white text-blue-600 shadow-xs">
+                    <i class="fa-solid fa-magnifying-glass"></i> Job Hunt
+                </button>
+                <button id="tabResumeBtn" onclick="switchTab('resume')" class="px-4 py-1.5 rounded-lg transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-file-lines"></i> Reference CV
+                    <span id="cvActiveBadge" class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                </button>
+            </div>
+        </div>
+    </header>
 
-                <!-- Stats / Results Header -->
-                <div id="resultsHeader" class="hidden mb-6 flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                    <div class="flex gap-6">
-                        <div>
-                            <p class="text-xs text-slate-500 font-bold uppercase">Jobs Found</p>
-                            <p id="jobsProcessed" class="text-2xl font-black text-slate-800">0</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-slate-500 font-bold uppercase">Resumes Generated</p>
-                            <p id="resumesGenerated" class="text-2xl font-black text-green-600">0</p>
-                        </div>
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+
+        <!-- ================= TAB 1: JOB HUNT ================= -->
+        <div id="huntTabContent" class="space-y-8">
+            <!-- Reference CV Quick Banner -->
+            <div class="bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 border border-blue-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg">
+                        <i class="fa-regular fa-id-badge"></i>
                     </div>
-                    <a href="https://docs.google.com/spreadsheets" target="_blank" class="text-sm text-primary hover:underline font-semibold flex items-center gap-1">
-                        Open Google Sheet <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs uppercase font-bold tracking-wider text-blue-700">Active Reference CV</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                                Loaded
+                            </span>
+                        </div>
+                        <p id="activeCvName" class="text-sm font-bold text-slate-900">Muhammad Isbah Arfin</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="/api/resume/preview-pdf" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition-colors flex items-center gap-1.5 shadow-xs">
+                        <i class="fa-regular fa-file-pdf text-red-500"></i> Preview PDF
                     </a>
-                </div>
-
-                <!-- Results List -->
-                <div id="resultsList" class="space-y-4">
-                    <!-- Cards injected here -->
-                    <div class="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
-                        <i class="fa-solid fa-clipboard-list text-4xl mb-3 text-slate-300"></i>
-                        <p>Results will appear here</p>
-                    </div>
+                    <button onclick="switchTab('resume')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center gap-1.5 shadow-xs shadow-blue-500/20">
+                        <i class="fa-solid fa-pen-to-square"></i> Upload / Edit CV
+                    </button>
                 </div>
             </div>
-        </main>
+
+            <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Form Section -->
+                <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xs border border-slate-200 h-fit">
+                    <div class="mb-5 pb-4 border-b border-slate-100">
+                        <h2 class="text-lg font-bold text-slate-900">Job Search Parameters</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Scrapes Indeed & tailors resumes for matches</p>
+                    </div>
+                    <form id="huntForm" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Job Title / Keywords</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-briefcase absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="text" id="keywords" value="Full Stack Developer" class="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Location</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-location-dot absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="text" id="location" value="Remote" class="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Minimum Match Score (0-100)</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-bullseye absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="number" id="min_match_score" value="75" min="0" max="100" class="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1">Scores &ge; this threshold trigger tailored PDF creation.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Max Jobs to Search</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-list-ol absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="number" id="max_jobs" value="10" min="1" max="50" class="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                            </div>
+                        </div>
+                        <button type="submit" id="submitBtn" class="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-rocket"></i> Initiate Job Hunt
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Results Section -->
+                <div class="lg:col-span-2 space-y-4">
+                    <!-- Loading State -->
+                    <div id="loadingState" class="hidden flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-xs border border-slate-200">
+                        <div class="relative mb-4">
+                            <div class="w-14 h-14 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin"></div>
+                            <i class="fa-solid fa-robot absolute inset-0 m-auto text-blue-600 text-lg flex items-center justify-center"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900">Scanning & Tailoring in Progress...</h3>
+                        <p class="text-sm text-slate-500 mt-1.5 text-center max-w-md px-4">
+                            Extracting Indeed postings, evaluating candidate fit with Gemini AI, and formatting ATS-compliant PDFs matching your master CV style.
+                        </p>
+                    </div>
+
+                    <!-- Stats / Results Header -->
+                    <div id="resultsHeader" class="hidden flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xs border border-slate-200">
+                        <div class="flex items-center gap-8">
+                            <div>
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Jobs Processed</p>
+                                <p id="jobsProcessed" class="text-2xl font-black text-slate-900">0</p>
+                            </div>
+                            <div class="border-l border-slate-200 pl-8">
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tailored Resumes</p>
+                                <p id="resumesGenerated" class="text-2xl font-black text-emerald-600">0</p>
+                            </div>
+                        </div>
+                        <a href="https://docs.google.com/spreadsheets" target="_blank" class="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl transition-colors flex items-center gap-1.5">
+                            Open Google Sheet Tracker <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <!-- Results List -->
+                    <div id="resultsList" class="space-y-4">
+                        <div class="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-white/50">
+                            <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                                <i class="fa-solid fa-clipboard-list text-2xl"></i>
+                            </div>
+                            <p class="text-sm font-semibold text-slate-600">No active hunt results yet</p>
+                            <p class="text-xs text-slate-400 mt-1">Configure your parameters on the left and click "Initiate Job Hunt"</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- ================= TAB 2: MASTER CV MANAGEMENT ================= -->
+        <div id="resumeTabContent" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-xs border border-slate-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                            <i class="fa-solid fa-file-invoice text-blue-600"></i> Master Reference Resume
+                        </h2>
+                        <p class="text-sm text-slate-500 mt-1">
+                            This baseline CV is used by Gemini AI to evaluate fit and generate tailored resumes matching this exact structure and pattern.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="/api/resume/preview-pdf" target="_blank" class="px-4 py-2 text-sm font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors flex items-center gap-2">
+                            <i class="fa-regular fa-file-pdf text-red-500"></i> Preview Rendered PDF
+                        </a>
+                        <button id="saveCvBtn" onclick="saveMasterResume()" class="px-5 py-2 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Notification Alert -->
+                <div id="cvAlert" class="hidden mt-4 p-4 rounded-xl text-sm flex items-center justify-between">
+                    <span id="cvAlertText"></span>
+                    <button onclick="document.getElementById('cvAlert').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Upload Dropzone Card -->
+                <div class="mt-6 p-6 rounded-2xl border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50/70 hover:bg-blue-50/30 transition-all text-center" id="dropZone">
+                    <input type="file" id="cvFileInput" accept=".pdf,.txt,.md" class="hidden" onchange="handleFileUpload(this.files[0])">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 rounded-xl bg-white shadow-xs border border-slate-200 flex items-center justify-center text-blue-600 text-xl mb-3">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <p class="text-sm font-bold text-slate-800">
+                            Upload your CV (<span class="text-blue-600">.pdf</span> or <span class="text-blue-600">.txt</span>)
+                        </p>
+                        <p class="text-xs text-slate-500 mt-1 max-w-sm">
+                            Drag & drop your file here, or click to browse. The text will be extracted automatically into the editor below.
+                        </p>
+                        <button type="button" onclick="document.getElementById('cvFileInput').click()" class="mt-3 px-4 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 shadow-xs transition-colors">
+                            <i class="fa-solid fa-folder-open mr-1"></i> Browse Files
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Textarea Editor -->
+                <div class="mt-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Master CV Content (Plain Text Layout)
+                        </label>
+                        <div class="flex items-center gap-4 text-xs text-slate-500 font-mono">
+                            <span id="charCount">0 characters</span>
+                            <span>•</span>
+                            <span id="lineCount">0 lines</span>
+                        </div>
+                    </div>
+                    <textarea id="masterCvEditor" rows="22" class="w-full font-mono text-xs leading-relaxed p-4 rounded-xl border border-slate-300 bg-slate-900 text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-inner resize-y" placeholder="Paste your master resume text here..."></textarea>
+                    <p class="text-xs text-slate-400 mt-2">
+                        <i class="fa-solid fa-circle-info mr-1 text-blue-500"></i>
+                        The generator preserves your name header, contact bar, section headings (Summary, Skills, Experience, Projects, Education, Certificates), and formatting pattern.
+                    </p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
+    <!-- Scripts -->
     <script>
+        // Tab switching logic
+        function switchTab(tab) {
+            const huntTabBtn = document.getElementById('tabHuntBtn');
+            const resumeTabBtn = document.getElementById('tabResumeBtn');
+            const huntTab = document.getElementById('huntTabContent');
+            const resumeTab = document.getElementById('resumeTabContent');
+
+            if (tab === 'hunt') {
+                huntTab.classList.remove('hidden');
+                resumeTab.classList.add('hidden');
+                huntTabBtn.className = "px-4 py-1.5 rounded-lg transition-all flex items-center gap-2 bg-white text-blue-600 shadow-xs";
+                resumeTabBtn.className = "px-4 py-1.5 rounded-lg transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900";
+            } else {
+                resumeTab.classList.remove('hidden');
+                huntTab.classList.add('hidden');
+                resumeTabBtn.className = "px-4 py-1.5 rounded-lg transition-all flex items-center gap-2 bg-white text-blue-600 shadow-xs";
+                huntTabBtn.className = "px-4 py-1.5 rounded-lg transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900";
+                loadMasterResume();
+            }
+        }
+
+        // Master Resume API calls
+        async function loadMasterResume() {
+            try {
+                const res = await fetch('/api/resume');
+                const data = await res.json();
+                if (data.content) {
+                    const editor = document.getElementById('masterCvEditor');
+                    editor.value = data.content;
+                    updateCounts(data.content);
+                    extractCandidateName(data.content);
+                }
+            } catch (err) {
+                console.error("Failed to load master resume", err);
+            }
+        }
+
+        function extractCandidateName(text) {
+            const firstLine = text.split('\n').map(l => l.trim()).find(l => l.length > 0);
+            if (firstLine) {
+                document.getElementById('activeCvName').innerText = firstLine;
+            }
+        }
+
+        function updateCounts(text) {
+            document.getElementById('charCount').innerText = `${text.length.toLocaleString()} characters`;
+            document.getElementById('lineCount').innerText = `${text.split('\n').length.toLocaleString()} lines`;
+        }
+
+        document.getElementById('masterCvEditor').addEventListener('input', (e) => {
+            updateCounts(e.target.value);
+            extractCandidateName(e.target.value);
+        });
+
+        async function saveMasterResume() {
+            const btn = document.getElementById('saveCvBtn');
+            const content = document.getElementById('masterCvEditor').value;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                const res = await fetch('/api/resume', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to save');
+                showCvAlert('Master CV saved successfully! Tailored resumes will now use this reference.', 'success');
+                extractCandidateName(content);
+            } catch (err) {
+                showCvAlert(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
+            }
+        }
+
+        async function handleFileUpload(file) {
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showCvAlert(`Uploading & extracting ${file.name}...`, 'info');
+
+            try {
+                const res = await fetch('/api/resume/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+                const editor = document.getElementById('masterCvEditor');
+                editor.value = data.content;
+                updateCounts(data.content);
+                extractCandidateName(data.content);
+                showCvAlert(`Uploaded and saved: ${data.filename}`, 'success');
+            } catch (err) {
+                showCvAlert(err.message, 'error');
+            }
+        }
+
+        function showCvAlert(msg, type) {
+            const alert = document.getElementById('cvAlert');
+            const text = document.getElementById('cvAlertText');
+            text.innerText = msg;
+            alert.className = `mt-4 p-4 rounded-xl text-sm flex items-center justify-between border ${
+                type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                type === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
+                'bg-blue-50 text-blue-800 border-blue-200'
+            }`;
+            alert.classList.remove('hidden');
+        }
+
+        // Drag & drop handlers
+        const dropZone = document.getElementById('dropZone');
+        ['dragenter', 'dragover'].forEach(name => {
+            dropZone.addEventListener(name, (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-blue-500', 'bg-blue-50/50');
+            });
+        });
+        ['dragleave', 'drop'].forEach(name => {
+            dropZone.addEventListener(name, (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50/50');
+            });
+        });
+        dropZone.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFileUpload(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Initialize master resume on page load
+        window.addEventListener('DOMContentLoaded', loadMasterResume);
+
+        // Job Hunt Form Handler
         document.getElementById('huntForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -100,9 +402,8 @@
             const resultsHeader = document.getElementById('resultsHeader');
             const resultsList = document.getElementById('resultsList');
             
-            // UI State updates
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Hunting...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Hunting & Tailoring...';
             btn.classList.add('opacity-75', 'cursor-not-allowed');
             
             resultsHeader.classList.add('hidden');
@@ -122,15 +423,13 @@
                     })
                 });
 
-                if (!response.ok) throw new Error('Network response was not ok: ' + await response.text());
+                if (!response.ok) throw new Error('Network response error: ' + await response.text());
                 
                 const data = await response.json();
                 
-                // Update stats
                 document.getElementById('jobsProcessed').innerText = data.jobs_processed;
                 document.getElementById('resumesGenerated').innerText = data.resumes_generated;
                 
-                // Render Cards
                 loading.classList.add('hidden');
                 loading.classList.remove('flex');
                 resultsHeader.classList.remove('hidden');
@@ -138,42 +437,50 @@
 
                 if (data.results.length === 0) {
                     resultsList.innerHTML = `
-                        <div class="bg-amber-50 p-6 rounded-xl border border-amber-200 text-amber-800 text-center">
-                            No jobs found for these keywords in this location.
+                        <div class="bg-amber-50 p-6 rounded-2xl border border-amber-200 text-amber-800 text-center font-medium">
+                            No jobs found matching your criteria. Try broader keywords or a different location.
                         </div>`;
                     return;
                 }
 
                 data.results.forEach(job => {
-                    let statusColor = job.status === "Ready" ? "bg-green-100 text-green-800 border-green-200" :
-                                      job.status.includes("Skipped") ? "bg-slate-100 text-slate-600 border-slate-200" :
-                                      "bg-red-100 text-red-800 border-red-200";
+                    let isReady = job.status === "Ready";
+                    let isSkipped = job.status.includes("Skipped");
+                    let statusColor = isReady ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                      isSkipped ? "bg-slate-100 text-slate-600 border-slate-200" :
+                                      "bg-red-50 text-red-700 border-red-200";
 
                     let card = document.createElement('div');
-                    card.className = "bg-white p-5 rounded-xl shadow-sm border border-slate-200 transition-all hover:shadow-md";
+                    card.className = "bg-white p-5 rounded-2xl shadow-xs border border-slate-200 transition-all hover:shadow-md";
                     
-                    let resumeHtml = job.resume_link ? `<a href="${job.resume_link}" target="_blank" class="text-sm font-semibold text-primary hover:underline flex items-center gap-1"><i class="fa-regular fa-file-pdf"></i> View Resume PDF</a>` : '';
-                    let errorHtml = job.error ? `<div class="mt-3 p-3 bg-red-50 text-red-700 text-xs rounded border border-red-100 break-words">${job.error}</div>` : '';
+                    let resumeHtml = job.resume_link ? `
+                        <a href="${job.resume_link}" target="_blank" class="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5">
+                            <i class="fa-regular fa-file-pdf"></i> View Tailored PDF
+                        </a>` : '';
+                    let errorHtml = job.error ? `
+                        <div class="mt-3 p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-100 font-mono break-words">${job.error}</div>` : '';
 
                     card.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                             <div>
-                                <h3 class="text-lg font-bold text-slate-900">${job.position || 'Unknown Position'}</h3>
-                                <p class="text-slate-600 font-medium">${job.company || 'Unknown Company'}</p>
+                                <h3 class="text-base font-bold text-slate-900">${job.position || 'Unknown Position'}</h3>
+                                <p class="text-xs font-semibold text-slate-500 mt-0.5">${job.company || 'Unknown Company'}</p>
                             </div>
-                            <span class="px-2.5 py-1 rounded-full text-xs font-bold border ${statusColor}">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${statusColor} w-fit">
                                 ${job.status}
                             </span>
                         </div>
                         
-                        <div class="flex items-center gap-4 mt-4">
-                            <div class="flex items-center gap-1.5 text-sm text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                                <i class="fa-solid fa-bullseye text-primary"></i> Score: <strong>${job.match_score}</strong>
+                        <div class="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
+                            <div class="flex items-center gap-1.5 text-xs text-slate-700 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200/80">
+                                <i class="fa-solid fa-bullseye text-blue-600"></i> Match Score: <strong class="font-bold">${job.match_score}/100</strong>
                             </div>
-                            <a href="${job.job_url}" target="_blank" class="text-sm text-slate-500 hover:text-primary transition-colors flex items-center gap-1">
-                                <i class="fa-solid fa-link"></i> Job Posting
+                            <a href="${job.job_url}" target="_blank" class="text-xs font-semibold text-slate-600 hover:text-blue-600 bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Job Posting
                             </a>
-                            ${resumeHtml}
+                            <div class="ml-auto">
+                                ${resumeHtml}
+                            </div>
                         </div>
                         ${errorHtml}
                     `;
@@ -184,14 +491,13 @@
                 loading.classList.add('hidden');
                 loading.classList.remove('flex');
                 resultsList.innerHTML = `
-                    <div class="bg-red-50 p-6 rounded-xl border border-red-200 text-red-700">
-                        <h4 class="font-bold mb-1">An error occurred</h4>
+                    <div class="bg-red-50 p-6 rounded-2xl border border-red-200 text-red-700">
+                        <h4 class="font-bold mb-1">An error occurred during pipeline execution</h4>
                         <p class="text-sm">${error.message}</p>
                     </div>`;
             } finally {
-                // Reset button
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Initiate Hunt';
+                btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Initiate Job Hunt';
                 btn.classList.remove('opacity-75', 'cursor-not-allowed');
             }
         });
