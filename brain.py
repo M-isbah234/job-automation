@@ -21,7 +21,7 @@ from google.genai import types
 load_dotenv()
 
 # Select default Gemini model (optimized for speed and quality)
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
 
 def analyze_job(job_description: str, master_resume: str) -> str:
@@ -151,10 +151,10 @@ def _generate_plain_text(prompt: str) -> str:
                     time.sleep(base_delay)
                     base_delay *= 2
                 else:
-                    print("Max retries reached. Trying fallback model 'gemini-1.5-flash'...")
+                    print("Max retries reached. Trying fallback model 'gemini-3.8-flash'...")
                     try:
                         completion = client.models.generate_content(
-                            model="gemini-1.5-flash",
+                            model="gemini-3.8-flash",
                             contents=prompt,
                             config=types.GenerateContentConfig(
                                 system_instruction=(
