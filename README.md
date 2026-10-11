@@ -50,7 +50,15 @@ uvicorn main:app --reload
 ```
 
 2. **Access the Dashboard:**
-
+Open your browser and navigate to:
+```
+http://127.0.0.1:8000
+```
+Interactive API documentation is also available at:
+```
+http://127.0.0.1:8000/docs
+```
 
 3. **Initiate a Job Hunt:**
-Use the provided interface to enter your target job title, location, minimum match score, and maximum jobs to scrape. The application will process the jobs sequentially, print progress to the terminal, and display the final results on the dashboard upon completion.
+Use the web dashboard to enter your target job title, location, minimum match score, and maximum jobs to scrape. The agent will process each job posting sequentially, provide live progress feedback, generate tailored ATS-friendly resumes for qualifying matches, upload them to Google Drive, and log application details to Google Sheets.
+
